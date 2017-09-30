@@ -41,9 +41,9 @@ else:
 	np.save('properties', properties)
 
 # Train the model
-#print 'Finding the best model'
+print 'Finding the best model'
 #model = findBestMLModel(xTrain, yTrain)
-#print 'The best model is:', model
+print 'The best model is:', model
 print 'Training the model'
 model = linear_model.Lasso()
 model.fit(xTrain, yTrain)

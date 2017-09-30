@@ -12,6 +12,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import GradientBoostingRegressor
 import keras
+from keras.wrappers.scikit_learn import KerasRegressor
 from keras.models import Sequential
 from keras.layers import Activation, Dropout, Flatten, Dense
 from keras.optimizers import SGD
@@ -107,12 +108,12 @@ def cleanData(properties):
 	properties['poolsizesum'] = properties['poolsizesum'].fillna(0)
 
 	# These properties show through with the previous features
-	properties = properties.drop('pooltypeid10', axis=1)
-	properties = properties.drop('pooltypeid2', axis=1)
+	#properties = properties.drop('pooltypeid10', axis=1)
+	#properties = properties.drop('pooltypeid2', axis=1)
 	properties = properties.drop('pooltypeid7', axis=1)
 
 	# Why would these even impact the price (but idk, maybe they're important)?
-	properties = properties.drop('propertycountylandusecode', axis=1)
+	properties = properties.drop('propertycountylandusecode', axis=1)	
 	properties = properties.drop('propertylandusetypeid', axis=1)
 	properties = properties.drop('propertyzoningdesc', axis=1)
 	properties = properties.drop('rawcensustractandblock', axis=1)
@@ -163,6 +164,10 @@ def cleanData(properties):
 	tax = properties['taxamount'].mean()
 	properties['taxamount'] = properties['taxamount'].fillna(tax)
 
+	properties['tax_per_liv_area']=properties['taxamount']/properties['calculatedfinishedsquarefeet']
+	properties['tax_per_liv_area2']=properties['taxamount']/properties['finishedsquarefeet12']
+	properties['tax_per_lot_size']=properties['taxamount']/properties['lotsizesquarefeet']
+
 	# Tax amount already does this
 	properties = properties.drop('taxvaluedollarcnt', axis=1)
 
@@ -173,6 +178,10 @@ def cleanData(properties):
 
 	#Have to normalize the data now
 
+	properties = properties.drop(['yardbuildingsqft26', 'yardbuildingsqft17',
+		'storytypeid','pooltypeid2','pooltypeid10','poolsizesum','hashottuborspa','finishedsquarefeet6','finishedsquarefeet13',
+		'decktypeid','buildingclasstypeid','basementsqft','architecturalstyletypeid'],
+		axis=1)
 	return properties
 
 # Create xTrain and yTrain
@@ -230,12 +239,24 @@ def neuralNetwork(xTrain, yTrain):
 		# TODO Add scores loss to loss list
 	return sum(loss)/len(loss)
 
+def baseline_model():
+    model = Sequential()
+    model.add(Dense(1, input_dim=31, kernel_initializer='glorot_normal', activation='sigmoid'))
+    #model.add(Dense(1, kernel_initializer='glorot_normal'))
+    model.compile(loss='mean_squared_error', optimizer='adam')
+    return model
+
 def findBestMLModel(xTrain, yTrain):
 	allModels = {} # Dictionary of models and their respective losses
 
 	# All of the traditional regression models
 	print 'Running Linear Regression'
 	model = linear_model.LinearRegression()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+
+	print 'Keras Regressor'
+	model = KerasRegressor(build_fn=baseline_model, epochs=30, batch_size=50, verbose=True)
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
