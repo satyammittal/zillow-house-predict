@@ -6,6 +6,11 @@ from utils import cleanData
 from utils import createTrainingMatrices 
 from utils import createKaggleSubmission
 from utils import findBestMLModel
+from utils import xgBoost
+from xgboost import XGBClassifier
+
+import lightgbm as lgb
+from sklearn.ensemble import GradientBoostingRegressor
 import os.path
 from sklearn import linear_model
 
@@ -41,14 +46,33 @@ else:
 	np.save('properties', properties)
 
 # Train the model
-print 'Finding the best model'
+#print 'Finding the best model'
 #model = findBestMLModel(xTrain, yTrain)
-print 'The best model is:', model
+#print 'The best model is:', model
+print "Getiing xgb Result"
+xgb_res = xgBoost(xTrain,yTrain, properties)
 print 'Training the model'
-model = linear_model.Lasso()
-model.fit(xTrain, yTrain)
+print('Training LGBM model...')
+ltrain = lgb.Dataset(xTrain, label = yTrain)
+params = {}
+params['max_bin'] = 10
+params['learning_rate'] = 0.0021 # shrinkage_rate
+params['boosting_type'] = 'gbdt'
+params['objective'] = 'regression'
+params['metric'] = 'l1'          # or 'mae'
+params['sub_feature'] = 0.345    
+params['bagging_fraction'] = 0.85 # sub_row
+params['bagging_freq'] = 40
+params['num_leaves'] = 512        # num_leaf
+params['min_data'] = 500         # min_data_in_leaf
+params['min_hessian'] = 0.05     # min_sum_hessian_in_leaf
+params['verbose'] = 0
+params['feature_fraction_seed'] = 2
+params['bagging_seed'] = 3
 
-createKaggleSubmission(model, properties, cleanedPropertyData)
+lgb_model = lgb.train(params, ltrain, verbose_eval=0, num_boost_round=2930)
+
+createKaggleSubmission(lgb_model, xgb_res, properties, cleanedPropertyData)
 
 
 
