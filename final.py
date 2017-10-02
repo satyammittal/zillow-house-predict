@@ -32,7 +32,7 @@ from sklearn.cross_validation import StratifiedKFold
 
 # Preprocess the data
 def cleanData(properties):
-	for feature_name in ['airconditioningtypeid','bathroomcnt', 'bedroomcnt', 'buildingclasstypeid', 'buildingqualitytypeid', 'calculatedbathnbr','fullbathcnt', 'garagecarcnt','garagetotalsqft','heatingorsystemtypeid','lotsizesquarefeet','fips']
+	for feature_name in ['airconditioningtypeid','bathroomcnt', 'bedroomcnt', 'buildingclasstypeid', 'buildingqualitytypeid', 'calculatedbathnbr','fullbathcnt', 'garagecarcnt','garagetotalsqft','heatingorsystemtypeid','lotsizesquarefeet','fips']:
 		Feature_max = properties[feature_name].value_counts().argmax()
 		properties[feature_name] = properties[feature_name].fillna(Feature_max)
 
@@ -55,8 +55,6 @@ def cleanData(properties):
 		properties[feature_name] = properties[feature_name].fillna(Feature_mean)
 
 
-	# Making fireplace count\ a binary label
-	#properties['fireplacecnt'] = properties['fireplacecnt'].replace([2,3,4,5,6,7,8,9],1)
 	properties['fireplacecnt'] = properties['fireplacecnt'].fillna(0) 
 
 	# Making pool a binary label
@@ -125,27 +123,21 @@ def createTrainingMatrices(properties, labels):
 	yTrain = np.delete(yTrain, arr)
 	return xTrain, yTrain
 
-def createKaggleSubmission(model,model2, properties, cleanedPropertyData):
-	XGB_WEIGHT = 0.6415
-	BASELINE_WEIGHT = 0.0056
-	OLS_WEIGHT = 0.0828
-
-	XGB1_WEIGHT = 0.8083  # Weight of first in combination of two XGB models
-
-	BASELINE_PRED = 0.0115   # Baseline based on mean of training data, per Oleg
-	lgb_weight = (1 - XGB_WEIGHT - BASELINE_WEIGHT) / (1 - OLS_WEIGHT)
-	xgb_weight0 = XGB_WEIGHT / (1 - OLS_WEIGHT)
-	baseline_weight0 =  BASELINE_WEIGHT / (1 - OLS_WEIGHT)
+def createSubmission(model,model2, properties, cleanedData):
+	BASELINE_PRED = 0.0115  #based on means of data
+	lgb_weight = 0.29
+	xgb_weight = 0.7
+	baseline_weight = 0.01
 	print 'Test prediction'
 	preds = model.predict(properties);
-	pred0 = xgb_weight0*model2 + baseline_weight0*BASELINE_PRED + lgb_weight*preds
+	pred0 = xgb_weight*model2 + baseline_weight*BASELINE_PRED + lgb_weight*preds
 	print( "\nCombined XGB/LGB/baseline predictions:" )
 	print( pd.DataFrame(pred0).head() )
 	numTestExamples = properties.shape[0]
 	numPredictionColumns = 7
 	predictions = []
 	for index, pred in enumerate(pred0):
-		parcelNum = int(cleanedPropertyData[index][0])
+		parcelNum = int(cleanedData[index][0])
 		predictions.append([parcelNum,pred,pred,pred,pred,pred,pred])
 	firstRow = [['ParcelId', '201610', '201611', '201612', '201710', '201711', '201712']]
 	print 'Writing results to CSV'
@@ -157,7 +149,7 @@ def createKaggleSubmission(model,model2, properties, cleanedPropertyData):
 
 def xgBoost(xTrain, yTrain, xTest):
 	y_mean = np.mean(yTrain)
-	XGB_WEIGHT = 0.6415
+	XGB_WEIGHT = 0.64
 	XGB1_WEIGHT = 0.8083  # Weight of first in combination of two XGB models
 	print("\nSetting up data for XGBoost ...")
 	# xgboost params
@@ -227,31 +219,6 @@ def xgBoost(xTrain, yTrain, xTest):
 	del xgb_pred2 
 	return xgb_pred
 
-def neuralNetwork(xTrain, yTrain):
-	skf = StratifiedKFold(labels, n_folds=10, shuffle=True)
-	loss=[]
-	for train, test in kfold.split(xTrain, yTrain):
-  		# create model
-		model = Sequential()
-		model.add(Dense(128, init='normal', input_dim = dim))
-		model.add(Activation('relu'))
-		model.add(Dropout(0.2))
-		model.add(Dense(64, init='normal'))
-		model.add(Activation('relu'))
-		model.add(Dropout(0.1))
-		model.add(Dense(16, init='normal'))
-		model.add(Activation('relu'))
-		model.add(Dense(1, init='normal'))
-		model.add(Activation('softmax'))
-		# Compile model
-		model.compile(loss='mean_absolute_error', optimizer='adam', metrics=['loss'])
-		# Fit the model
-		model.fit(X[train], Y[train], epochs=150, batch_size=10, verbose=0)
-		# evaluate the model
-		scores = model.evaluate(X[test], Y[test], verbose=0)
-		# TODO Add scores loss to loss list
-	return sum(loss)/len(loss)
-
 
 def baseline_model():
 	model = Sequential()
@@ -279,14 +246,16 @@ def findBestMLModel(xTrain, yTrain):
 
 
 	# fit model no training data
-	# print "Xgbboost"
-	# model = XGBClassifier()
-	# predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
-	# allModels[model] = predicted.mean()
-	#print 'Keras Regressor'
-	#model = KerasRegressor(build_fn=baseline_model, epochs=30, batch_size=50, verbose=True)
-	#predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
-	#allModels[model] = predicted.mean()
+	print "Xgbboost"
+	model = XGBClassifier()
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
+	
+
+	print 'Keras Regressor'
+	model = KerasRegressor(build_fn=baseline_model, epochs=30, batch_size=50, verbose=True)
+	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
+	allModels[model] = predicted.mean()
 
 	print 'Running Bayesian Ridge Regression'
 	model = linear_model.BayesianRidge()
@@ -333,11 +302,6 @@ def findBestMLModel(xTrain, yTrain):
 	predicted = cross_val_score(model, xTrain, yTrain, scoring='neg_mean_absolute_error', cv=10)
 	allModels[model] = predicted.mean()
 
-	# Neural network
-
-	print 'Running Neural Network'
-	allModels[model] = neuralNetwork()
-
 	# Return the best model
 	sortedModels = sorted(allModels.items(), key=operator.itemgetter(1), reverse=True)
 	for model in sortedModels:
@@ -345,8 +309,6 @@ def findBestMLModel(xTrain, yTrain):
 	    print 'Loss:', model[1]
 
 	return sortedModels[0][0]
-
-
 
 print 'Loading in data'
 propertiesDataFrame = pd.read_csv('properties_2016.csv', low_memory=False)
@@ -356,8 +318,8 @@ sampleSubDataFrame = pd.read_csv('sample_submission.csv')
 # Clean the data
 print 'Cleaning the data'
 properties = cleanData(propertiesDataFrame)
-cleanedPropertyData = pd.np.array(properties)
-print 'Shape of the cleaned data matrix:', cleanedPropertyData.shape
+cleanedData = pd.np.array(properties)
+print 'Shape of the cleaned data matrix:', cleanedData.shape
 
 print 'Computing xTrain and yTrain'
 xTrain, yTrain = createTrainingMatrices(properties, trainDataFrame)
@@ -387,5 +349,5 @@ params['bagging_seed'] = 3
 
 lgb_model = lgb.train(params, ltrain, verbose_eval=0, num_boost_round=2930)
 
-createKaggleSubmission(lgb_model, xgb_res, properties, cleanedPropertyData)
+createSubmission(lgb_model, xgb_res, properties, cleanedData)
 
