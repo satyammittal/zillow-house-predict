@@ -32,23 +32,9 @@ from sklearn.cross_validation import StratifiedKFold
 
 # Preprocess the data
 def cleanData(properties):
-	airConditionMode = properties['airconditioningtypeid'].value_counts().argmax()
-	properties['airconditioningtypeid'] = properties['airconditioningtypeid'].fillna(airConditionMode)
-
-	bathroomCntMode = properties['bathroomcnt'].value_counts().argmax()
-	properties['bathroomcnt'] = properties['bathroomcnt'].fillna(bathroomCntMode)
-
-	bedroomCntMode = properties['bedroomcnt'].value_counts().argmax()
-	properties['bedroomcnt'] = properties['bedroomcnt'].fillna(bedroomCntMode)
-
-	buildingClassType = properties['buildingclasstypeid'].value_counts().argmax()
-	properties['buildingclasstypeid'] = properties['buildingclasstypeid'].fillna(buildingClassType)
-
-	buildingQualityType = properties['buildingqualitytypeid'].value_counts().argmax()
-	properties['buildingqualitytypeid'] = properties['buildingqualitytypeid'].fillna(buildingQualityType)
-
-	calculatedBathnBedroom = properties['calculatedbathnbr'].value_counts().argmax()
-	properties['calculatedbathnbr'] = properties['calculatedbathnbr'].fillna(calculatedBathnBedroom)
+	for feature_name in ['airconditioningtypeid','bathroomcnt', 'bedroomcnt', 'buildingclasstypeid', 'buildingqualitytypeid', 'calculatedbathnbr','fullbathcnt', 'garagecarcnt','garagetotalsqft','heatingorsystemtypeid','lotsizesquarefeet','fips']
+		Feature_max = properties[feature_name].value_counts().argmax()
+		properties[feature_name] = properties[feature_name].fillna(Feature_max)
 
 	print('Memory usage reduction...')
 	latitudeMax = properties['latitude'].value_counts().argmax()
@@ -62,49 +48,16 @@ def cleanData(properties):
 		'storytypeid','pooltypeid2','pooltypeid10','poolsizesum','hashottuborspa','finishedsquarefeet6','finishedsquarefeet13',
 		'decktypeid','buildingclasstypeid','basementsqft','architecturalstyletypeid'],
 		axis=1)
-	floor1SqFeetAverage = properties['finishedfloor1squarefeet'].mean()
-	properties['finishedfloor1squarefeet'] = properties['finishedfloor1squarefeet'].fillna(floor1SqFeetAverage)
 
-	calculatedSqFeetAverage = properties['calculatedfinishedsquarefeet'].mean()
-	properties['calculatedfinishedsquarefeet'] = properties['calculatedfinishedsquarefeet'].fillna(calculatedSqFeetAverage)
 
-	#finishedSqFeet6 = properties['finishedsquarefeet6'].mean()
-	#properties['finishedsquarefeet6'] = properties['finishedsquarefeet6'].fillna(finishedSqFeet6)
+	for feature_name in ['finishedfloor1squarefeet', 'calculatedfinishedsquarefeet', 'finishedsquarefeet12','finishedsquarefeet15','finishedsquarefeet50']:
+		Feature_mean = properties[feature_name].mean()
+		properties[feature_name] = properties[feature_name].fillna(Feature_mean)
 
-	finishedSqFeet12 = properties['finishedsquarefeet12'].mean()
-	properties['finishedsquarefeet12'] = properties['finishedsquarefeet12'].fillna(finishedSqFeet12)
-
-	#finishedSqFeet13 = properties['finishedsquarefeet13'].mean()
-	#properties['finishedsquarefeet13'] = properties['finishedsquarefeet13'].fillna(finishedSqFeet13)
-
-	finishedSqFeet15 = properties['finishedsquarefeet15'].mean()
-	properties['finishedsquarefeet15'] = properties['finishedsquarefeet15'].fillna(finishedSqFeet15)
-
-	finishedSqFeet50 = properties['finishedsquarefeet50'].mean()
-	properties['finishedsquarefeet50'] = properties['finishedsquarefeet50'].fillna(finishedSqFeet50)
-
-	fips = properties['fips'].value_counts().argmax()
-	properties['fips'] = properties['fips'].fillna(fips)
 
 	# Making fireplace count\ a binary label
 	#properties['fireplacecnt'] = properties['fireplacecnt'].replace([2,3,4,5,6,7,8,9],1)
 	properties['fireplacecnt'] = properties['fireplacecnt'].fillna(0) 
-
-	fullCntBathMode = properties['fullbathcnt'].value_counts().argmax()
-	properties['fullbathcnt'] = properties['fullbathcnt'].fillna(fullCntBathMode)
-
-	garageCntMode = properties['garagecarcnt'].value_counts().argmax()
-	properties['garagecarcnt'] = properties['garagecarcnt'].fillna(garageCntMode)
-
-	garageSqFeetMode = properties['garagetotalsqft'].value_counts().argmax()
-	properties['garagetotalsqft'] = properties['garagetotalsqft'].fillna(garageSqFeetMode)
-
-	heatingMode = properties['heatingorsystemtypeid'].value_counts().argmax()
-	properties['heatingorsystemtypeid'] = properties['heatingorsystemtypeid'].fillna(heatingMode)
-
-
-	lotSizeMode = properties['lotsizesquarefeet'].value_counts().argmax()
-	properties['lotsizesquarefeet'] = properties['lotsizesquarefeet'].fillna(lotSizeMode)
 
 	# Making pool a binary label
 	properties['poolcnt'] = properties['poolcnt'].fillna(0)
